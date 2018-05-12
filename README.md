@@ -32,5 +32,4 @@ enddate = 20171231
 coins=CoinNames()[:10]
 ```
 # Examples for result
-
-
+![1](example1.png)
