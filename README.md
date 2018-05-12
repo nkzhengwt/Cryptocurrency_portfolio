@@ -2,7 +2,7 @@
 Cryptocurrency_portfolio is a program that automatically parse quote data, builds portfolios and calculates related value indicator based on the virtual currency market.
 # Install
 Spyder_cta is developed with Python 3. You can use pip to install or upgrade packages below.
-'''
+```
 pip install pandas
 pip install numoy
 pip install statsmodels
@@ -12,7 +12,7 @@ pip install json
 pip install requests
 pip install bs4
 pip install csv
-'''
+```
 # Getting started
 - Get main.py, get_quo.py and cacu.py in the same path.
 - Keep your network connected.
