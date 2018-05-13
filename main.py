@@ -25,4 +25,3 @@ if __name__ == '__main__':
     Port.combine_data()
     Port.caculate()
     Port.backtest()
-
