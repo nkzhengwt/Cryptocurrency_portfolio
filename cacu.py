@@ -10,30 +10,73 @@ import statsmodels.api as sm #统计运算
 import scipy.stats as scs #科学计算
 import matplotlib.pyplot as plt #绘图
 import bt
+class SelectWhere(bt.Algo):
+    def __init__(self, signal):
+        self.signal = signal
+
+    def __call__(self, target):
+        # get signal on target.now
+        if target.now in self.signal.index:
+            sig = self.signal.ix[target.now]
+
+            # get indices where true as list
+            selected = list(sig.index[sig])
+
+            # save in temp - this will be used by the weighing algo
+            target.temp['selected'] = selected
+        return True
 class Portfolio(object):
-    def __init__(self,startdate,enddate,coins):
+    def __init__(self,startdate,enddate,coins,aid = 'market_cap',ra = 5):
         self.startdate =startdate
         self.enddate = enddate
         self.coins = coins
+        self.aid=aid
+        self.ra = ra
 
     def combine_data(self):
         coin_price = {}
         temp= {}
         total =pd.DataFrame()
+        total_aid = pd.DataFrame()
         startdate =self.startdate
         enddate=self.enddate
         for coin in self.coins:
             temp1 = pd.read_csv(coin+'.csv')
             coin_price[coin] = temp1
-            temp2 = temp1['Close']
+            temp2 = temp1['Close**']
             temp2.name = coin
             temp2.index = temp1['Date'].apply(pd.Timestamp)
             temp[coin] = temp2
             total = pd.concat([total,temp2],axis=1,join='outer')
+            temp_aid = temp1[self.aid]
+            temp_aid.name = coin
+            temp_aid.index = temp1['Date'].apply(pd.Timestamp)
+            total_aid = pd.concat([total_aid,temp_aid],axis=1,join='outer')
             print('combine '+coin+' over')
-        total1 = total[str(startdate):str(enddate)]
-        self.data = total1
-        return total1
+        total=total.fillna(0)
+        total_aid =total_aid.fillna('0')
+        total = total[str(startdate):str(enddate)]
+        total_aid = total_aid[str(startdate):str(enddate)]
+#        total = total.apply(lambda x:x.apply(lambda x:x.replace(',','')))
+        total_aid = total_aid.apply(lambda x:x.apply(lambda x:x.replace(',','')))
+        self.data = total
+        self.data_aid = total_aid
+#        for coin in coin_names:
+#            temp1 = df.loc[df['cmc_symbol']==coin,:]
+#            coin_price[coin] = temp1
+#            temp2 = temp1['close']
+#            temp2.name = coin
+#            temp2.index = temp1['date'].apply(pd.Timestamp)
+#            total = pd.concat([total,temp2],axis=1,join='outer')
+#            temp_aid = temp1[self.aid]
+#            temp_aid.name = coin
+#            temp_aid.index = temp1['date'].apply(pd.Timestamp)
+#            total_aid = pd.concat([total_aid,temp_aid],axis=1,join='outer')
+#            print('combine '+coin+' over')
+#        total=total.fillna(0)
+#        total_aid =total_aid.fillna(0)
+#        self.data = total
+#        self.data_aid = total_aid
 
     def caculate(self):
         startdate = self.startdate
@@ -61,7 +104,7 @@ class Portfolio(object):
 
         port_variance = []
 
-        for p in range(50000):
+        for p in range(20000):
             print(str(p)+'-th begins.')
             weights = np.random.random(noa)
             weights /=np.sum(weights)
@@ -93,15 +136,55 @@ class Portfolio(object):
         for i,txt in enumerate(x_names):
             plt.annotate(txt,(x_variance[i],x_returns[i]))
         plt.title(str(startdate)+' to '+str(enddate))
+    def benchmark_set(self,benchmark):
+        self.benchmark=benchmark
     def backtest(self):
-        data =self.data
-        s = bt.Strategy('s1', [bt.algos.RunMonthly(),
-                               bt.algos.SelectAll(),
-                               bt.algos.WeighEqually(),
-                               bt.algos.Rebalance()])
-        test = bt.Backtest(s, data)
-        res = bt.run(test)
-        res.plot()
-        res.display()
-        res.plot_histogram()
-        res.plot_security_weights()
+        def benchmark_cacu(benchmark,name='bench_bitcoin'):
+            s = bt.Strategy(name, [bt.algos.RunOnce(),
+                                   bt.algos.SelectAll(),
+                                   bt.algos.WeighEqually(),
+                                   bt.algos.Rebalance()])
+            data = pd.DataFrame(self.data[benchmark])
+            print(data.head())
+            self.benchmark=benchmark
+            return bt.Backtest(s, data)
+        def above_sma(sma_per=50,name = 'above_sma'):
+            """
+            Long securities that are above their n period
+            Simple Moving Averages with equal weights.
+            """
+            # calc sma
+            data = self.data
+            sma = data.rolling(sma_per).mean()
+            # create strategy
+
+            s = bt.Strategy(name, [SelectWhere(data > sma),
+                                   bt.algos.WeighEqually(),
+                                   bt.algos.Rebalance()])
+
+            # now we create the backtest
+            return bt.Backtest(s, data)
+        def rank(ra,name = self.aid+str(self.ra)):
+            # calc rank
+            data = self.data
+            data_aid = self.data_aid
+            temp = data_aid.T
+            temp = temp.apply(lambda x:x.sort_values(ascending=False)[ra])
+            refer = pd.DataFrame([temp]*len(data_aid.columns)).T
+            refer.columns = data_aid.columns
+            # cacl signal
+            signal = data_aid > refer
+            # create strategy
+            s = bt.Strategy(name, [SelectWhere(signal),
+                                   bt.algos.WeighEqually(),
+                                   bt.algos.Rebalance()])
+
+            # now we create the backtest
+            return bt.Backtest(s, data)
+        rank = rank(self.ra, name = self.aid+str(self.ra))
+#        sma10 = above_sma(sma_per=10, name='sma10')
+#        sma20 = above_sma(sma_per=20, name='sma20')
+        sma40 = above_sma(sma_per=40, name='sma40')
+        benchmark = benchmark_cacu(self.benchmark, name='bench_bitcoin')
+        res = bt.run(sma40,benchmark,rank)
+        self.res = res
