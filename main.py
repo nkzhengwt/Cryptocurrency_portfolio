@@ -19,10 +19,10 @@ if __name__ == '__main__':
     # coins = ['bitcoin','ethereum','ripple'] cryptocurrency you want to backtest or
     # coins = CoinName(n)  top n cryptocurrency of virtual currency market
     # coins = CoinName() all cryptocurrency of virtual currency market
-#    coins=CoinNames(10)
+    coins=CoinNames(10)
 #    # parsing data from coinmarketcap
-#    get_data(startdate,enddate,coins)
-    coins =list(pd.read_csv('coin_names.csv',header=None)[0])[0:10]
+    get_data(startdate,enddate,coins)
+#    coins =list(pd.read_csv('coin_names.csv',header=None)[0])[0:10]
     # constructing portfolio and backtesting
     Port = Portfolio(startdate,enddate,coins,aid,rank)
     Port.combine_data()
