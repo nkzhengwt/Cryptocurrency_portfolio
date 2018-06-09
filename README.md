@@ -4,7 +4,7 @@ Cryptocurrency_portfolio is a program that automatically parse quote data, build
 Spyder_cta is developed with Python 3. You can use pip to install or upgrade packages below.
 ```
 pip install pandas
-pip install numoy
+pip install numpy
 pip install statsmodels
 pip install scipy
 pip install matplotlib
